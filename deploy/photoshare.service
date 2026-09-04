@@ -1,0 +1,13 @@
+[Unit]
+Description=PhotoShare FastAPI
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/photoshare
+ExecStart=/opt/photoshare/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+User=root
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
