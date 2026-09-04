@@ -27,6 +27,11 @@ COS_DOMAIN = _env("COS_DOMAIN")
 # 会话签名密钥,上线前务必改成随机长字符串
 SECRET_KEY = _env("SECRET_KEY", "please-change-this-to-a-random-string")
 
+# ---------- 管理员账号(启动时自动创建,仅当两项都配置) ----------
+# 配置后重启应用即自动建好管理员;管理员可删除任意帖子
+ADMIN_USERNAME = _env("ADMIN_USERNAME")
+ADMIN_PASSWORD = _env("ADMIN_PASSWORD")
+
 # ---------- 存储 ----------
 DB_PATH = _env("DB_PATH", str(BASE_DIR / "data" / "app.db"))
 

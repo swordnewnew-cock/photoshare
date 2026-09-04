@@ -12,7 +12,7 @@
     <nav>
       {% if user %}
         <a href="/new" class="btn btn-primary">发照片</a>
-        <span class="who">{{ user.username }}</span>
+        <span class="who">{{ user.username }}{% if user.is_admin %} <em class="badge-admin">管理员</em>{% endif %}</span>
         <a href="/logout">退出</a>
       {% else %}
         <a href="/login">登录</a>
@@ -26,5 +26,12 @@
   </main>
 
   <footer class="footer">PhotoShare · FastAPI + SQLite + 腾讯云 COS</footer>
+
+  <div id="lightbox" class="lightbox" hidden>
+    <img id="lightbox-img" src="" alt="预览">
+    <button id="lightbox-close" class="lightbox-close" aria-label="关闭">&times;</button>
+  </div>
+
+  <script src="/static/app.js" defer></script>
 </body>
 </html>

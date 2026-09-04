@@ -3,18 +3,26 @@
 
 {% block content %}
   {% if posts %}
-    <div class="grid">
+    <div class="masonry">
       {% for post in posts %}
-        <a class="card" href="/post/{{ post.id }}">
-          <img src="{{ post.image_url }}" alt="{{ post.caption or '照片' }}" loading="lazy">
-          <div class="card-body">
-            <p class="caption">{{ post.caption or "（无文案）" }}</p>
-            <div class="meta">
-              <span>@{{ post.author.username }}</span>
-              <span>{{ post.comments|length }} 评论</span>
+        <div class="card-wrap">
+          <a class="card" href="/post/{{ post.id }}">
+            <img src="{{ post.image_url }}" alt="{{ post.caption or '照片' }}" loading="lazy" data-lightbox>
+            <div class="card-body">
+              <p class="caption">{{ post.caption or "（无文案）" }}</p>
+              <div class="meta">
+                <span>@{{ post.author.username }}{% if post.author.is_admin %} <em class="badge-admin">管理员</em>{% endif %}</span>
+                <span>{{ post.comments|length }} 评论</span>
+              </div>
             </div>
-          </div>
-        </a>
+          </a>
+          {% if user and (user.id == post.user_id or user.is_admin) %}
+            <form method="post" action="/post/{{ post.id }}/delete" class="card-del"
+                  onsubmit="return confirm('确定删除这张照片？')">
+              <button type="submit" title="删除" aria-label="删除">×</button>
+            </form>
+          {% endif %}
+        </div>
       {% endfor %}
     </div>
   {% else %}

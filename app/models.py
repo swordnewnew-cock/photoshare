@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -21,6 +21,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(128))
     salt: Mapped[str] = mapped_column(String(32))
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     posts: Mapped[list[Post]] = relationship(back_populates="author")
     comments: Mapped[list[Comment]] = relationship(back_populates="author")

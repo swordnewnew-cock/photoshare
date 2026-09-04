@@ -6,6 +6,7 @@
 import hashlib
 import hmac
 import secrets
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, Request, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -38,13 +39,17 @@ def verify_password(password: str, password_hash: str, salt: str) -> bool:
 
 # ---------------- 会话 ----------------
 def create_session(response: Response, user_id: int) -> None:
+    """下发登录 Cookie。浏览器关闭再打开仍有效(持久化 7 天)。"""
     token = serializer.dumps({"uid": user_id})
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=SESSION_MAX_AGE)
     response.set_cookie(
         SESSION_COOKIE,
         token,
-        max_age=SESSION_MAX_AGE,
-        httponly=True,
-        samesite="lax",
+        max_age=SESSION_MAX_AGE,        # 相对秒数,主流浏览器
+        expires=expires_at,             # 绝对过期时间,某些代理/老浏览器只认这个
+        path="/",                       # 全站都带
+        httponly=True,                  # 防 XSS 偷 cookie
+        samesite="lax",                 # 防 CSRF,允许链接跳转
     )
 
 
@@ -69,4 +74,14 @@ def require_user(request: Request, db: Session = Depends(get_db)) -> User:
     user = current_user(request, db)
     if not user:
         raise HTTPException(status_code=303, headers={"Location": "/login"})
+    return user
+
+
+def require_admin(request: Request, db: Session = Depends(get_db)) -> User:
+    """需要管理员:未登录跳登录,已登录但非管理员跳首页。"""
+    user = current_user(request, db)
+    if not user:
+        raise HTTPException(status_code=303, headers={"Location": "/login"})
+    if not user.is_admin:
+        raise HTTPException(status_code=303, headers={"Location": "/"})
     return user

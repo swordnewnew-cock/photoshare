@@ -3,13 +3,13 @@
 
 {% block content %}
 <article class="detail">
-  <img src="{{ post.image_url }}" alt="{{ post.caption or '照片' }}">
+  <img src="{{ post.image_url }}" alt="{{ post.caption or '照片' }}" data-lightbox>
   <div class="detail-body">
     <p class="caption">{{ post.caption }}</p>
     <div class="meta">
-      <span>@{{ post.author.username }}</span>
+      <span>@{{ post.author.username }}{% if post.author.is_admin %} <em class="badge-admin">管理员</em>{% endif %}</span>
       <time>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</time>
-      {% if user and user.id == post.user_id %}
+      {% if user and (user.id == post.user_id or user.is_admin) %}
         <form method="post" action="/post/{{ post.id }}/delete" class="inline"
               onsubmit="return confirm('确定删除这张照片？')">
           <button type="submit" class="link-danger">删除</button>

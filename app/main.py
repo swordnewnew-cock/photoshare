@@ -9,15 +9,41 @@ from sqlalchemy.orm import Session
 
 from app import auth, cos_client
 from app.config import ALLOWED_IMAGE_TYPES, BASE_DIR, MAX_UPLOAD_MB
-from app.database import get_db, init_db
+from app.database import SessionLocal, get_db, init_db
 from app.models import Comment, Post, User
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    """启动时建表。"""
+    """启动时建表,并自动创建管理员账号(若已配置)。"""
     init_db()
+    _bootstrap_admin()
     yield
+
+
+def _bootstrap_admin() -> None:
+    """根据 .env 的 ADMIN_USERNAME / ADMIN_PASSWORD 创建管理员(幂等)。"""
+    from app.auth import hash_password
+    from app.config import ADMIN_PASSWORD, ADMIN_USERNAME
+    from app.models import User
+
+    if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+        return
+    db = SessionLocal()
+    try:
+        if not db.query(User).filter(User.username == ADMIN_USERNAME).first():
+            pwd_hash, salt = hash_password(ADMIN_PASSWORD)
+            db.add(
+                User(
+                    username=ADMIN_USERNAME,
+                    password_hash=pwd_hash,
+                    salt=salt,
+                    is_admin=True,
+                )
+            )
+            db.commit()
+    finally:
+        db.close()
 
 
 app = FastAPI(title="PhotoShare", lifespan=lifespan)
@@ -166,7 +192,8 @@ def delete_post(
     user: User = Depends(auth.require_user),
 ):
     post = db.get(Post, post_id)
-    if post and post.user_id == user.id:
+    # 作者本人或管理员均可删除
+    if post and (post.user_id == user.id or user.is_admin):
         db.delete(post)
         db.commit()
     return RedirectResponse("/", status_code=303)
