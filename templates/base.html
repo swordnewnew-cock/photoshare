@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PhotoShare{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="/" class="logo">PhotoShare</a>
+    <nav>
+      {% if user %}
+        <a href="/new" class="btn btn-primary">发照片</a>
+        <span class="who">{{ user.username }}</span>
+        <a href="/logout">退出</a>
+      {% else %}
+        <a href="/login">登录</a>
+        <a href="/register" class="btn btn-primary">注册</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">PhotoShare · FastAPI + SQLite + 腾讯云 COS</footer>
+</body>
+</html>

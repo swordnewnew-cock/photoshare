@@ -1,0 +1,33 @@
+# 环境变量(含 COS 密钥,绝不能提交!)
+.env
+
+# 数据库文件(保留目录结构,不提交实际数据)
+data/*
+!data/.gitkeep
+*.db
+*.sqlite3
+
+# 本地上传的图片(仅开发调试用)
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

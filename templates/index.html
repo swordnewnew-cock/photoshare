@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}首页 · PhotoShare{% endblock %}
+
+{% block content %}
+  {% if posts %}
+    <div class="grid">
+      {% for post in posts %}
+        <a class="card" href="/post/{{ post.id }}">
+          <img src="{{ post.image_url }}" alt="{{ post.caption or '照片' }}" loading="lazy">
+          <div class="card-body">
+            <p class="caption">{{ post.caption or "（无文案）" }}</p>
+            <div class="meta">
+              <span>@{{ post.author.username }}</span>
+              <span>{{ post.comments|length }} 评论</span>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">
+      <p>还没有照片。</p>
+      {% if user %}<a href="/new" class="btn btn-primary">发第一张</a>{% endif %}
+    </div>
+  {% endif %}
+{% endblock %}
