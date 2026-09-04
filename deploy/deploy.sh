@@ -1,83 +1,85 @@
 #!/usr/bin/env bash
-# PhotoShare 一键部署脚本（Ubuntu 24.04 / Lighthouse 2核2G）
-# 用法: bash deploy.sh
-# 前置: 已放行 80/443 防火墙、域名已解析到本机公网 IP、已 git clone 本仓库到 /opt/photoshare
+# PhotoShare 部署脚本(国内 Lighthouse 适配版)
+# 前置: 代码已在 CodeUp(国内,可达); 域名已解析; 防火墙 80 已开
+# 说明: 从 CodeUp 克隆 + Nginx 反代(腾讯 apt 源) + pip 走腾讯镜像 + 先 HTTP 起站
+# 用法: sudo bash /opt/photoshare/deploy/deploy.sh
 set -e
 
 DOMAIN="choujubuchou.online"
 APP_DIR="/opt/photoshare"
-REPO="https://github.com/swordnewnew-cock/photoshare.git"
+REPO="https://codeup.aliyun.com/623be72f56f85235f7dd59c0/swordnewnew-cock/photoshare.git"
 PORT=8000
+PIP_MIRROR="https://mirrors.tencent.com/pypi/simple/"
 
-echo "== [1/8] 系统依赖 =="
+echo "== [1/8] 系统依赖(腾讯 apt 源) =="
 apt-get update -y
-apt-get install -y python3-venv python3-pip git curl gnupg
+apt-get install -y python3-venv python3-pip nginx
 
-echo "== [2/8] 安装 Caddy =="
-apt-get install -y debian-keyring debian-archive-keyring apt-transport-https
-curl -1sLf 'https://dl.cloudflare.com/rpm/PHCk3pFIAD2G7jsR/stable/gpg' | gpg --dearmor -o /usr/share/keyrings/caddy-stable.gpg
-echo "deb [signed-by=/usr/share/keyrings/caddy-stable.gpg] https://dl.cloudflare.com/rpm/PHCk3pFIAD2G7jsR/stable/debian/ any-version main" >/etc/apt/sources.list.d/caddy-stable.list
-apt-get update -y
-apt-get install -y caddy
-
-echo "== [3/8] 拉取代码（有则更新，无则克隆）=="
+echo "== [2/8] 拉取代码(有则更新,无则克隆) =="
 if [ -d "$APP_DIR/.git" ]; then
   git -C "$APP_DIR" pull
 else
   git clone "$REPO" "$APP_DIR"
 fi
 
-echo "== [4/8] 虚拟环境 + 依赖 =="
+echo "== [3/8] 虚拟环境 + 依赖(腾讯 pip 镜像) =="
 python3 -m venv "$APP_DIR/.venv"
-"$APP_DIR/.venv/bin/pip" install -U pip -q
-"$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt" -q
+"$APP_DIR/.venv/bin/pip" install -U pip -i "$PIP_MIRROR" -q
+"$APP_DIR/.venv/bin/pip" install -r "$APP_DIR/requirements.txt" -i "$PIP_MIRROR" -q
 
-echo "== [5/8] 生成 .env（仅首次，已存在则保留）=="
+echo "== [4/8] 生成 .env =="
 if [ ! -f "$APP_DIR/.env" ]; then
-  cat > "$APP_DIR/.env" <<EOF
-SECRET_KEY=$(python3 -c "import secrets;print(secrets.token_hex(32))")
-DB_PATH=$APP_DIR/data/app.db
-MAX_UPLOAD_MB=10
-EOF
+  python3 -c "import secrets;open('$APP_DIR/.env','w').write('SECRET_KEY='+secrets.token_hex(32)+'\nDB_PATH=$APP_DIR/data/app.db\nMAX_UPLOAD_MB=10\n')"
   echo ".env 已生成"
 else
-  echo ".env 已存在，保留"
+  echo ".env 已存在,保留"
 fi
 
-echo "== [6/8] Caddy 反代配置 =="
-cat > /etc/caddy/Caddyfile <<EOF
-$DOMAIN {
-    encode gzip
-    reverse_proxy 127.0.0.1:$PORT
+echo "== [5/8] Nginx 反代配置 =="
+cat > /etc/nginx/sites-available/photoshare <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+    client_max_body_size 12m;
+    location /static {
+        alias $APP_DIR/static;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:$PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
 }
 EOF
+ln -sf /etc/nginx/sites-available/photoshare /etc/nginx/sites-enabled/
+rm -f /etc/nginx/sites-enabled/default
 
-echo "== [7/8] systemd 服务 =="
+echo "== [6/8] systemd 服务 =="
 cat > /etc/systemd/system/photoshare.service <<EOF
 [Unit]
 Description=PhotoShare FastAPI
 After=network.target
-
 [Service]
 WorkingDirectory=$APP_DIR
 ExecStart=$APP_DIR/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port $PORT
 Restart=always
 User=root
 Environment=PYTHONUNBUFFERED=1
-
 [Install]
 WantedBy=multi-user.target
 EOF
 
-echo "== [8/8] 启动服务 =="
+echo "== [7/8] 启动 =="
 systemctl daemon-reload
-systemctl enable photoshare caddy
-systemctl restart photoshare caddy
+systemctl enable photoshare nginx
+systemctl restart photoshare nginx
 sleep 3
 systemctl is-active photoshare && echo "photoshare: OK" || echo "photoshare: FAIL"
-systemctl is-active caddy && echo "caddy: OK" || echo "caddy: FAIL"
+systemctl is-active nginx && echo "nginx: OK" || echo "nginx: FAIL"
 
-echo "== 验证 =="
-curl -sk "https://$DOMAIN/" | head -c 200
+echo "== [8/8] 验证 =="
+curl -s "http://$DOMAIN/" | head -c 200
 echo ""
-echo "部署完成 -> https://$DOMAIN"
+echo "部署完成 -> http://$DOMAIN  (HTTPS 后续用腾讯云免费证书开启)"
